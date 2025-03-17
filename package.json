@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@next/third-parties": "^15.2.2",
     "@supabase/supabase-js": "^2.49.1",
     "docx": "^9.2.0",
     "file-saver": "^2.0.5",
