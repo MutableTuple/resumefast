@@ -1,24 +1,27 @@
 @import "tailwindcss";
-
-@theme {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer utilities {
+    .bg-dotted {
+      background-image: radial-gradient(circle, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+      background-size: 20px 20px; /* Adjust density */
+    }
   }
+  
+
+  /* In your globals.css */
+.shining-text {
+  background: linear-gradient(to right, #8b5cf6, #ec4899, #ef4444, #ec4899, #8b5cf6);
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shine 8s ease-in-out infinite;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes shine {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
