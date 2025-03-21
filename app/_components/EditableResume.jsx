@@ -1,22 +1,32 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { MdOutlineEmail, MdOutlineLocationOn, MdPhone, MdLink, MdAdd, MdDelete, MdFileDownload } from "react-icons/md";
+import React, { useRef, useState, useEffect } from "react";
+import { MdOutlineEmail, MdOutlineLocationOn, MdPhone, MdLink, MdAdd, MdDelete, MdFileDownload, MdSave, MdContentCopy } from "react-icons/md";
 import { FaGithub, FaLinkedin } from "react-icons/fa";
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import SponsoredAdsSection from "./SponsoredAdsSection";
 import { supabase } from "../_lib/supabase";
 import { formatNumber } from "../_utils/formatNumber";
-
+import { v4 as uuidv4 } from "uuid"; // You may need to install this package
 
 // EditableField component with improved styling
-const EditableField = ({ value, className, placeholder }) => {
+const EditableField = ({ value, className, placeholder, onChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(value || "");
 
-  const handleBlur = () => setIsEditing(false);
-  const handleChange = (e) => setText(e.target.value);
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (onChange) onChange(text);
+  };
+  
+  const handleChange = (e) => {
+    setText(e.target.value);
+  };
+
+  useEffect(() => {
+    setText(value || "");
+  }, [value]);
 
   return isEditing ? (
     <input
@@ -38,12 +48,22 @@ const EditableField = ({ value, className, placeholder }) => {
 };
 
 // EditableTextArea for longer text content
-const EditableTextArea = ({ value, className, placeholder }) => {
+const EditableTextArea = ({ value, className, placeholder, onChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(value || "");
 
-  const handleBlur = () => setIsEditing(false);
-  const handleChange = (e) => setText(e.target.value);
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (onChange) onChange(text);
+  };
+  
+  const handleChange = (e) => {
+    setText(e.target.value);
+  };
+
+  useEffect(() => {
+    setText(value || "");
+  }, [value]);
 
   return isEditing ? (
     <textarea
@@ -68,6 +88,18 @@ export default function EditableResume({dwnld_val}) {
   const resumeRef = useRef(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [template, setTemplate] = useState("modern"); // modern, classic, minimal
+  const [resumeId, setResumeId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(""); // For showing save status messages
+
+  // Personal Information state
+  const [personalInfo, setPersonalInfo] = useState({
+    name: "John Smith",
+    title: "Fullstack Developer",
+    summary: "Experienced developer with a passion for creating efficient, scalable web applications. Skilled in modern JavaScript frameworks and backend technologies.",
+    email: "johnsmith@email.com",
+    phone: "(555) 123-4567",
+    location: "NY, USA"
+  });
 
   // States for each section
   const [experiences, setExperiences] = useState([
@@ -97,6 +129,14 @@ export default function EditableResume({dwnld_val}) {
   const [certifications, setCertifications] = useState([
     { id: 1, name: "AWS Certified Solutions Architect", issuer: "Amazon Web Services", date: "2023", link: "" }
   ]);
+
+  // Functions to update personal info
+  const updatePersonalInfo = (field, value) => {
+    setPersonalInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   // Functions to add new items
   const addExperience = () => {
@@ -154,6 +194,170 @@ export default function EditableResume({dwnld_val}) {
     setCertifications(certifications.filter(cert => cert.id !== id));
   };
 
+  // Function to update experience items
+  const updateExperience = (id, field, value) => {
+    setExperiences(prev => prev.map(exp => 
+      exp.id === id ? { ...exp, [field]: value } : exp
+    ));
+  };
+
+  // Function to update education items
+  const updateEducation = (id, field, value) => {
+    setEducation(prev => prev.map(edu => 
+      edu.id === id ? { ...edu, [field]: value } : edu
+    ));
+  };
+
+  // Function to update skill items
+  const updateSkill = (id, value) => {
+    setSkills(prev => prev.map(skill => 
+      skill.id === id ? { ...skill, name: value } : skill
+    ));
+  };
+
+  // Function to update project items
+  const updateProject = (id, field, value) => {
+    setProjects(prev => prev.map(project => 
+      project.id === id ? { ...project, [field]: value } : project
+    ));
+  };
+
+  // Function to update social link items
+  const updateSocialLink = (id, field, value) => {
+    setSocialLinks(prev => prev.map(link => 
+      link.id === id ? { ...link, [field]: value } : link
+    ));
+  };
+
+  // Function to update certification items
+  const updateCertification = (id, field, value) => {
+    setCertifications(prev => prev.map(cert => 
+      cert.id === id ? { ...cert, [field]: value } : cert
+    ));
+  };
+
+  // Prepare complete resume data for storage
+  const compileResumeData = () => {
+    return {
+      id: resumeId || uuidv4(),
+      template,
+      personalInfo,
+      experiences,
+      education,
+      skills,
+      projects,
+      socialLinks,
+      certifications,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  };
+
+  // Save resume data to Supabase
+  const saveResumeToSupabase = async () => {
+    try {
+      setSaveStatus("Saving...");
+      const resumeData = compileResumeData();
+      
+      const { data, error } = await supabase
+        .from('resumes')
+        .upsert({ 
+          id: resumeData.id, 
+          data: resumeData 
+        }, { 
+          onConflict: 'id',
+          returning: 'minimal'
+        });
+        
+      if (error) {
+        console.error("Error saving resume:", error);
+        setSaveStatus("Failed to save");
+        throw error;
+      }
+      
+      // If this is a new resume, store the ID
+      if (!resumeId) {
+        setResumeId(resumeData.id);
+      }
+      
+      setSaveStatus("Saved successfully!");
+      console.log("Resume saved successfully!");
+      
+      // Hide the success message after 3 seconds
+      setTimeout(() => {
+        setSaveStatus("");
+      }, 3000);
+      
+      return resumeData.id;
+    } catch (error) {
+      console.error("Error in save process:", error);
+      setSaveStatus("Error saving resume");
+      throw error;
+    }
+  };
+
+  // Load resume data from Supabase
+  const loadResumeFromSupabase = async (id) => {
+    try {
+      const { data, error } = await supabase
+        .from('resumes')
+        .select('data')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        console.error("Error loading resume:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.error("Resume not found");
+        return;
+      }
+      
+      const resumeData = data.data;
+      
+      // Populate all states from the loaded data
+      setResumeId(resumeData.id);
+      setTemplate(resumeData.template || "modern");
+      setPersonalInfo(resumeData.personalInfo || {});
+      setExperiences(resumeData.experiences || []);
+      setEducation(resumeData.education || []);
+      setSkills(resumeData.skills || []);
+      setProjects(resumeData.projects || []);
+      setSocialLinks(resumeData.socialLinks || []);
+      setCertifications(resumeData.certifications || []);
+      
+      console.log("Resume loaded successfully!");
+    } catch (error) {
+      console.error("Error in load process:", error);
+      throw error;
+    }
+  };
+
+  // Generate shareable link
+  const generateShareableLink = () => {
+    if (!resumeId) return null;
+    return `${window.location.origin}/resume/${resumeId}`;
+  };
+
+  // Copy shareable link to clipboard
+  const copyShareableLink = async () => {
+    const link = generateShareableLink();
+    if (link) {
+      try {
+        await navigator.clipboard.writeText(link);
+        setSaveStatus("Link copied to clipboard!");
+        setTimeout(() => {
+          setSaveStatus("");
+        }, 3000);
+      } catch (err) {
+        console.error("Failed to copy link:", err);
+        setSaveStatus("Failed to copy link");
+      }
+    }
+  };
+
   // PDF generation
   const handleDownloadPDF = async () => {
     if (!resumeRef.current) return;
@@ -193,6 +397,14 @@ export default function EditableResume({dwnld_val}) {
   
     // Start the increment process (don't wait for it to complete)
     incrementDownloadCount();
+    
+    // Save the resume before downloading
+    try {
+      await saveResumeToSupabase();
+    } catch (error) {
+      console.error("Failed to save resume before download:", error);
+      // Continue with download even if save fails
+    }
     
     setTimeout(async () => {
       try {
@@ -245,56 +457,59 @@ export default function EditableResume({dwnld_val}) {
   );
 
   return (
-    <div className="flex flex-col items-center p-4 max-w-4xl  mx-auto">
+    <div className="flex flex-col items-center p-4 max-w-4xl mx-auto">
       <div className="w-full text-center mb-6">
-      <h1 className="text-4xl font-bold relative">
-        <span className="bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 bg-clip-text text-transparent animate-gradient-x bg-300">
-          ResumeFast
-        </span>
-      </h1>
-      <p className="italic text-stone-700 mt-1">
-        Build your ATS friendly resume fast with
-        <span className="font-semibold border-b mx-1 border-dashed border-black">resumefast!</span>
-        no login or signup!
-      </p>
-    </div>
-     
+        <h1 className="text-4xl font-bold relative">
+          <span className="bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 bg-clip-text text-transparent animate-gradient-x bg-300">
+            ResumeFast
+          </span>
+        </h1>
+        <p className="italic text-stone-700 mt-1">
+          Build your ATS friendly resume fast with
+          <span className="font-semibold border-b mx-1 border-dashed border-black">resumefast!</span>
+          no login or signup!
+        </p>
+      </div>
 
-      {/* ADS */}
-      {/* <SponsoredAdsSection /> */}
+      {/* Save Status Message */}
+      {saveStatus && (
+        <div className="w-full mb-4 px-4 py-2 bg-green-100 text-green-800 rounded-lg text-center">
+          {saveStatus}
+        </div>
+      )}
+
       {/* Template Selection - Hidden during printing */}
       {!isPrinting && (
-      <div className="w-full mb-6 flex justify-between items-center bg-white/50 backdrop-blur-md p-4 rounded-xl shadow-md">
-      {/* Template Selection Buttons */}
-      <div className="flex gap-3">
-        {["modern", "classic", "minimal"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setTemplate(type)}
-            className={`px-5 py-2 rounded-lg font-semibold transition-all duration-300 
-              ${
-                template === type
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-400/50 scale-105"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-          >
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </button>
-        ))}
-      </div>
-    
-      {/* ATS-Friendly Text */}
-      <div className="text-sm text-gray-600 font-medium">
-        ✅ ATS-friendly resume
-      </div>
-    </div>
-    
+        <div className="w-full mb-6 flex justify-between items-center bg-white/50 backdrop-blur-md p-4 rounded-xl shadow-md">
+          {/* Template Selection Buttons */}
+          <div className="flex gap-3">
+            {["modern", "classic", "minimal"].map((type) => (
+              <button
+                key={type}
+                onClick={() => setTemplate(type)}
+                className={`px-5 py-2 rounded-lg font-semibold transition-all duration-300 
+                  ${
+                    template === type
+                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-400/50 scale-105"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
+        
+          {/* ATS-Friendly Text */}
+          <div className="text-sm text-gray-600 font-medium">
+            ✅ ATS-friendly resume
+          </div>
+        </div>
       )}
   
       {/* Resume Container */}
       <div 
         ref={resumeRef} 
-        className={`w-full p-6 border  border-stone-300 bg-white shadow-lg rounded-lg 
+        className={`w-full p-6 border border-stone-300 bg-white shadow-lg rounded-lg 
                     ${template === 'minimal' ? 'font-sans' : 
                       template === 'classic' ? 'font-serif' : 'font-sans'}`}
       >
@@ -302,16 +517,27 @@ export default function EditableResume({dwnld_val}) {
         <div className={`w-full flex flex-col gap-2 ${template !== 'minimal' ? 'border-b border-gray-200 pb-4' : ''}`}>
           <h1 className={`text-3xl font-bold ${template === 'classic' ? 'text-center' : ''} 
                           ${template === 'minimal' ? 'text-gray-800' : ''}`}>
-            <EditableField value="John Smith" className="font-bold" placeholder="Your Name" />
+            <EditableField 
+              value={personalInfo.name} 
+              className="font-bold" 
+              placeholder="Your Name" 
+              onChange={(value) => updatePersonalInfo('name', value)}
+            />
           </h1>
           <h2 className={`text-lg font-semibold text-gray-700 ${template === 'classic' ? 'text-center' : ''}`}>
-            <EditableField value="Fullstack Developer" className="font-semibold" placeholder="Job Title" />
+            <EditableField 
+              value={personalInfo.title} 
+              className="font-semibold" 
+              placeholder="Job Title" 
+              onChange={(value) => updatePersonalInfo('title', value)}
+            />
           </h2>
           <p className={`text-sm text-gray-600 w-full leading-relaxed ${template === 'classic' ? 'text-center' : ''}`}>
             <EditableTextArea
-              value="Experienced developer with a passion for creating efficient, scalable web applications. Skilled in modern JavaScript frameworks and backend technologies."
+              value={personalInfo.summary}
               className="text-sm w-full"
               placeholder="Professional Summary"
+              onChange={(value) => updatePersonalInfo('summary', value)}
             />
           </p>
 
@@ -319,15 +545,27 @@ export default function EditableResume({dwnld_val}) {
           <div className={`flex flex-wrap mt-4 gap-4 text-gray-600 ${template === 'classic' ? 'justify-center' : ''}`}>
             <span className="flex gap-2 items-center text-sm">
               <MdOutlineEmail className="text-lg text-blue-500" />
-              <EditableField value="johnsmith@email.com" placeholder="Email" />
+              <EditableField 
+                value={personalInfo.email} 
+                placeholder="Email" 
+                onChange={(value) => updatePersonalInfo('email', value)}
+              />
             </span>
             <span className="flex gap-2 items-center text-sm">
               <MdPhone className="text-lg text-blue-500" />
-              <EditableField value="(555) 123-4567" placeholder="Phone" />
+              <EditableField 
+                value={personalInfo.phone} 
+                placeholder="Phone" 
+                onChange={(value) => updatePersonalInfo('phone', value)}
+              />
             </span>
             <span className="flex gap-2 items-center text-sm">
               <MdOutlineLocationOn className="text-lg text-green-500" />
-              <EditableField value="NY, USA" placeholder="Location" />
+              <EditableField 
+                value={personalInfo.location} 
+                placeholder="Location" 
+                onChange={(value) => updatePersonalInfo('location', value)}
+              />
             </span>
           </div>
 
@@ -342,10 +580,12 @@ export default function EditableResume({dwnld_val}) {
                   value={link.platform} 
                   placeholder="Platform"
                   className="w-20"
+                  onChange={(value) => updateSocialLink(link.id, 'platform', value)}
                 />
                 <EditableField 
                   value={link.url} 
                   placeholder="URL"
+                  onChange={(value) => updateSocialLink(link.id, 'url', value)}
                 />
                 {!isPrinting && (
                   <button 
@@ -375,18 +615,34 @@ export default function EditableResume({dwnld_val}) {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className={`text-lg font-semibold ${template === 'classic' ? 'text-gray-800' : ''}`}>
-                    <EditableField value={exp.position} placeholder="Position" />
+                    <EditableField 
+                      value={exp.position} 
+                      placeholder="Position" 
+                      onChange={(value) => updateExperience(exp.id, 'position', value)}
+                    />
                   </div>
                   <div className={`flex justify-between text-sm ${template === 'minimal' ? 'text-gray-700' : ''}`}>
                     <span className="font-medium text-gray-700">
-                      <EditableField value={exp.company} placeholder="Company" />
+                      <EditableField 
+                        value={exp.company} 
+                        placeholder="Company" 
+                        onChange={(value) => updateExperience(exp.id, 'company', value)}
+                      />
                     </span>
                     <span className="text-gray-500">
-                      <EditableField value={exp.period} placeholder="Time Period" />
+                      <EditableField 
+                        value={exp.period} 
+                        placeholder="Time Period" 
+                        onChange={(value) => updateExperience(exp.id, 'period', value)}
+                      />
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
-                    <EditableTextArea value={exp.description} placeholder="Job description and achievements" />
+                    <EditableTextArea 
+                      value={exp.description} 
+                      placeholder="Job description and achievements" 
+                      onChange={(value) => updateExperience(exp.id, 'description', value)}
+                    />
                   </div>
                 </div>
                 {!isPrinting && (
@@ -409,18 +665,34 @@ export default function EditableResume({dwnld_val}) {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="text-lg font-semibold">
-                    <EditableField value={edu.degree} placeholder="Degree/Certificate" />
+                    <EditableField 
+                      value={edu.degree} 
+                      placeholder="Degree/Certificate" 
+                      onChange={(value) => updateEducation(edu.id, 'degree', value)}
+                    />
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="font-medium text-gray-700">
-                      <EditableField value={edu.school} placeholder="School/University" />
+                      <EditableField 
+                        value={edu.school} 
+                        placeholder="School/University" 
+                        onChange={(value) => updateEducation(edu.id, 'school', value)}
+                      />
                     </span>
                     <span className="text-gray-500">
-                      <EditableField value={edu.year} placeholder="Years" />
+                      <EditableField 
+                        value={edu.year} 
+                        placeholder="Years" 
+                        onChange={(value) => updateEducation(edu.id, 'year', value)}
+                      />
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
-                    <EditableTextArea value={edu.description} placeholder="Relevant coursework and achievements" />
+                    <EditableTextArea 
+                      value={edu.description} 
+                      placeholder="Relevant coursework and achievements" 
+                      onChange={(value) => updateEducation(edu.id, 'description', value)}
+                    />
                   </div>
                 </div>
                 {!isPrinting && (
@@ -443,24 +715,38 @@ export default function EditableResume({dwnld_val}) {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="text-lg font-semibold">
-                    <EditableField value={cert.name} placeholder="Certification Name" />
+                    <EditableField 
+                      value={cert.name} 
+                      placeholder="Certification Name" 
+                      onChange={(value) => updateCertification(cert.id, 'name', value)}
+                    />
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="font-medium text-gray-700">
-                      <EditableField value={cert.issuer} placeholder="Issuing Organization" />
+                      <EditableField 
+                        value={cert.issuer} 
+                        placeholder="Issuing Organization" 
+                        onChange={(value) => updateCertification(cert.id, 'issuer', value)}
+                      />
                     </span>
                     <span className="text-gray-500">
-                      <EditableField value={cert.date} placeholder="Date" />
+                      <EditableField 
+                        value={cert.date} 
+                        placeholder="Date" 
+                        onChange={(value) => updateCertification(cert.id, 'date', value)}
+                      />
                     </span>
                   </div>
-                  {cert.link && (
-                    <div className="mt-1 text-sm text-blue-600">
-                      <span className="flex items-center gap-1">
-                        <MdLink />
-                        <EditableField value={cert.link} placeholder="Certification Link" />
-                      </span>
-                    </div>
-                  )}
+                  <div className="mt-1 text-sm text-blue-600">
+                    <span className="flex items-center gap-1">
+                      <MdLink />
+                      <EditableField 
+                        value={cert.link} 
+                        placeholder="Certification Link" 
+                        onChange={(value) => updateCertification(cert.id, 'link', value)}
+                      />
+                    </span>
+                  </div>
                 </div>
                 {!isPrinting && (
                   <button 
