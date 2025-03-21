@@ -9,6 +9,8 @@ import SponsoredAdsSection from "./SponsoredAdsSection";
 import { supabase } from "../_lib/supabase";
 import { formatNumber } from "../_utils/formatNumber";
 import { v4 as uuidv4 } from "uuid"; // You may need to install this package
+import Socials from "./Socials";
+import Link from "next/link";
 
 // EditableField component with improved styling
 const EditableField = ({ value, className, placeholder, onChange }) => {
@@ -817,6 +819,7 @@ export default function EditableResume({dwnld_val}) {
    {/* ADS */}
    <p className="mt-4  text-xs text-stone-500">Sponsored</p>
    <SponsoredAdsSection />
+   <Socials/>
       {/* Action Buttons - Hidden during printing */}
       {!isPrinting && (
         <div className="mt-6 flex gap-4 flex-col">
@@ -827,9 +830,11 @@ export default function EditableResume({dwnld_val}) {
            
             <MdFileDownload className="text-xl" /> Download as PDF
           </button>
-         <span className="text-xs  text-stone-600 text-center italic">{formatNumber(dwnld_val)} resume(s) downloaded till now</span>
+        
         </div>
       )}
+         <p className="text-xs  text-stone-500 italic my-2">by downloading this you&apos;re accepting our <Link className="text-blue-700" href={'/privacy-policy'}>privacy policy</Link></p>
+         <span className="text-sm  text-stone-950 text-center font-semibold ">{formatNumber(dwnld_val)} resume(s) downloaded till now</span>
     </div>
   );
 }
