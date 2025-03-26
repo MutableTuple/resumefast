@@ -415,7 +415,7 @@ export default function EditableResume({dwnld_val}) {
         const padding = 10;
           
         const canvas = await html2canvas(resumeRef.current, {
-          scale: 2,
+          scale: 1.25,
           useCORS: true,
         });
           

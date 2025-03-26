@@ -55,7 +55,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-      <GoogleAnalytics gaId="G-4FWN4CBP58" /> 
+      {/* <GoogleAnalytics gaId="G-4FWN4CBP58" />  */}
       </head>
       <body className={`${lexend.className} antialiased`}>{children}</body>
     </html>
