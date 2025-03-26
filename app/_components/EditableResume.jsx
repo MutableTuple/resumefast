@@ -95,12 +95,12 @@ export default function EditableResume({dwnld_val}) {
 
   // Personal Information state
   const [personalInfo, setPersonalInfo] = useState({
-    name: "John Smith",
-    title: "Fullstack Developer",
-    summary: "Experienced developer with a passion for creating efficient, scalable web applications. Skilled in modern JavaScript frameworks and backend technologies.",
-    email: "johnsmith@email.com",
-    phone: "(555) 123-4567",
-    location: "NY, USA"
+    name: "Your fullname",
+    title: "Your Job title",
+    summary: "A summary that tells about you in brief!",
+    email: "your email",
+    phone: "your phone number",
+    location: "Your location"
   });
 
   // States for each section
@@ -770,7 +770,7 @@ export default function EditableResume({dwnld_val}) {
               <div key={skill.id} className={`${template === 'modern' ? 'bg-gray-100 rounded-full' : 
                                               template === 'minimal' ? 'border border-gray-300 rounded' :
                                               'bg-gray-50 rounded'} px-3 py-1 text-sm group relative`}>
-                <EditableField value={skill.name} placeholder="Skill" />
+                <EditableField value={skill.name} placeholder="Skill" onChange={(value) => updateSkill(skill.id, value)} />
                 {!isPrinting && (
                   <button 
                     onClick={() => removeSkill(skill.id)}
@@ -791,15 +791,15 @@ export default function EditableResume({dwnld_val}) {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="text-lg font-semibold">
-                    <EditableField value={project.name} placeholder="Project Name" />
+                    <EditableField value={project.name} placeholder="Project Name" onChange={(value) => updateProject(project.id,"name" ,value)}   />
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
-                    <EditableTextArea value={project.description} placeholder="Project description and technologies used" />
+                    <EditableTextArea value={project.description} placeholder="Project description and technologies used" onChange={(value) => updateProject(project.id,"description" ,value)}   />
                   </div>
                   <div className="mt-1 text-sm text-blue-600">
                     <span className="flex items-center gap-1">
                       <MdLink />
-                      <EditableField value={project.link} placeholder="Project Link" />
+                      <EditableField value={project.link} placeholder="Project Link" onChange={(value) => updateProject(project.id,"link" ,value)}  />
                     </span>
                   </div>
                 </div>
